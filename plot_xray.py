@@ -14,6 +14,8 @@ file_ending = ".xrdml"
 
 interesting_peaks = {'001': 8.84, '002':	17.73, '003':	26.73, '004': 35.9, '005': 45.32	, '006':	55.07,
  '007':	65.27	, '008': 76.1}
+
+# interesting_peaks = {}
 							
 # Extract all xrdml files in children folders
 xrdml_folder_file_dict = {}
@@ -48,14 +50,15 @@ for folder in xrdml_folder_file_dict:
 
 # Sort folders in desired order
 name_start = 'SD'
-doping_type = 'Nd'
-doping_reg = '{}[0-9]+'.format(doping_type)
+doping_start= 'Nd'
+doping_reg = '{}[0-9]+'.format(doping_start)
 name_reg = '{}[0-9]+'.format(name_start)
+sorting_reg = name_reg
 
 def folder_sort(sorting_reg):
     return lambda folder_name: re.findall(sorting_reg, folder_name)
 
-sorted_folder_dict = sorted(xrdml_folder_file_dict, key=folder_sort(doping_reg), reverse=False)
+sorted_folder_dict = sorted(xrdml_folder_file_dict, key=folder_sort(sorting_reg), reverse=False)
 
 # Create comparison figures
 total_fig, total_ax = plt.subplots(figsize=(12, 8))
@@ -72,21 +75,24 @@ total_offset = 0.1
 
 # Plot the data from each file in sorted order
 for folder in sorted_folder_dict:
-  total_offset *= 10
+  total_offset *= 100
   for file in xrdml_folder_file_dict[folder]:
     angle_values = np.asarray(xrdml_folder_file_dict[folder][file][0])
     intensity_values = np.asarray(xrdml_folder_file_dict[folder][file][1])
-    doping = int(re.findall(doping_reg, folder)[0][-2:])
-    print(doping)
+    # doping = int(re.findall(doping_reg, folder)[0][-2:])
+    doping = re.findall(doping_reg, folder)
+    plot_label = '{}: {}%'.format(folder[:5], int(doping[0][-2:])) if doping else folder[:5]
 
     fig, ax = plt.subplots()
-    ax.plot(angle_values, intensity_values, label='{}: {}%'.format(folder[:5], doping))
+    ax.plot(angle_values, intensity_values, label=plot_label)
 
-    # Only plot vertical lines in xrd files
+    # Only plot vertical lines and comparison for xrd files
     if 'tth' in file:
-      total_ax.plot(angle_values, intensity_values * total_offset, lw='0.7', label='{}: {}%'.format(folder[:5], doping))
+      total_ax.plot(angle_values, intensity_values * total_offset, lw='0.7', label=plot_label)
       for peak in interesting_peaks:
         ax.axvline(interesting_peaks[peak], 0, 1, label=peak, ls='--', lw='0.5')
+
+    # TODO: Create comparison for XRR files
 
     ax.set_title(file)
     ax.set_yscale("log")
@@ -97,13 +103,13 @@ for folder in sorted_folder_dict:
     ax.grid(alpha=0.25)
     # Save .png of plot to folder with file
     fig.savefig("{}/{}.png".format(folder, file))
-    fig.show()
+    # fig.show()
     # plt.pause(0.001)
 
 # Label both by sample ID and by doping
 handles, labels = total_ax.get_legend_handles_labels()
 total_ax.legend(handles[::-1], labels[::-1], title=None, loc='best')
-total_fig.savefig('{}_{}.png'.format(total_fig_title, doping_type))
+total_fig.savefig('{}_{}.png'.format(total_fig_title, doping_start if sorting_reg == doping_reg else name_start))
 total_fig.show()
 
 input("hit[enter] to close all plots")
